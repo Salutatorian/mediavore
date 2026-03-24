@@ -1,5 +1,15 @@
 # Putting Mediavore on GitHub
 
+## “Yowza — upload fewer than 100 files”
+
+That message is from **GitHub’s website** (“Add file → Upload files”). It only lets you drop **about 100 files per batch**, so it breaks on real projects.
+
+**Do not use web upload for the whole app.** Use **Git on your computer** instead: `git add`, `git commit`, `git push`. There is no 100-file limit for normal pushes.
+
+If you **must** use the web UI for something tiny, upload **under 100 files** per commit — but for Mediavore you should always use the commands in [README.md](../README.md#push-updates-so-you-never-forget).
+
+---
+
 Use this checklist so you only upload **source code**, not junk or secrets.
 
 ## What to include (safe to push)

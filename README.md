@@ -2,11 +2,13 @@
 
 Next-gen media downloader — feed it a link, get your media.
 
-**Own stack, own API, own UI.** Mediavore is inspired by the same *category* of tools (paste URL → file) but is **not** built from [Cobalt](https://github.com/imputnet/cobalt) or any other project’s source—see [`docs/INSPIRATION.md`](docs/INSPIRATION.md) and [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+**Own stack, own API, own UI.** Mediavore is inspired by the same *category* of tools (paste URL → file) but is **not** built from [Cobalt](https://github.com/imputnet/cobalt) or any other project's source—see [`docs/INSPIRATION.md`](docs/INSPIRATION.md) and [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
-Highlights: streaming downloads with attachment headers (mobile-friendly), live health pulses, and the “Fluid-Dark” Mediavore interface.
+Highlights: streaming downloads with attachment headers (mobile-friendly), live health pulses, and the "Fluid-Dark" Mediavore interface.
 
-**GitHub:** A root [`.gitignore`](.gitignore) keeps secrets and heavy folders out of your repo. Step-by-step push instructions: [`docs/GITHUB.md`](docs/GITHUB.md).
+**GitHub repo:** [github.com/Salutatorian/mediavore](https://github.com/Salutatorian/mediavore)
+
+A root [`.gitignore`](.gitignore) keeps secrets and heavy folders out of your repo. First-time setup and safer upload checklist: [`docs/GITHUB.md`](docs/GITHUB.md).
 
 ## Prerequisites
 
@@ -69,7 +71,7 @@ mediavore/
 │   │   └── sw.js             # Service worker
 │   └── index.html
 ├── docs/
-│   ├── ARCHITECTURE.md   # How Mediavore is designed (distinct from “tunnel APIs”)
+│   ├── ARCHITECTURE.md   # How Mediavore is designed (distinct from "tunnel APIs")
 │   └── INSPIRATION.md    # Category reference vs code independence
 └── ROADMAP.md
 ```
@@ -81,3 +83,33 @@ The backend uses `StreamingResponse` with `Content-Disposition: attachment`, whi
 ## Auto-Update
 
 A background task runs `pip install -U yt-dlp` every 12 hours to stay ahead of 2026 platform changes.
+
+## License
+
+Mediavore source code is licensed under [AGPL-3.0](LICENSE). If you host a modified version publicly, you must share your changes under the same license.
+
+The **Mediavore** name and branding are not covered by the AGPL and remain the property of their creator.
+
+Third-party libraries (React, Framer Motion, Three.js, FastAPI, yt-dlp, etc.) retain their own licenses.
+
+---
+
+## Push updates (so you never forget)
+
+From the project root, after you change files:
+
+```powershell
+cd "C:\Users\JW\Desktop\project mediavore"
+git add .
+git commit -m "Describe what you changed"
+git push
+```
+
+If `git push` says the remote has new commits, pull then push:
+
+```powershell
+git pull origin main
+git push
+```
+
+**Don't bulk-upload on github.com** — GitHub caps that at ~100 files. Use `git push` from your PC instead.
