@@ -242,6 +242,76 @@ def _build_display_filename(info: dict, dl_type: str, quality: str, ext: str) ->
     return f"{title}{ext}"
 
 
+def _best_thumbnail_url(info: dict) -> str | None:
+    """
+    yt-dlp often omits top-level `thumbnail` for Instagram, TikTok, etc. but fills
+    `thumbnails` with multiple URLs. Pick the largest by pixel area when dimensions exist.
+    """
+    if not isinstance(info, dict):
+        return None
+
+    def from_single(d: dict) -> str | None:
+        for key in ("thumbnail", "thumbnail_url"):
+            v = d.get(key)
+            if isinstance(v, str) and v.strip():
+                return v.strip()
+            if isinstance(v, list) and v:
+                first = v[0]
+                if isinstance(first, str) and first.strip():
+                    return first.strip()
+                if isinstance(first, dict):
+                    u = first.get("url")
+                    if isinstance(u, str) and u.strip():
+                        return u.strip()
+        thumbs = d.get("thumbnails")
+        if not isinstance(thumbs, list) or not thumbs:
+            return None
+        best_url = None
+        best_score = (-1, -9999)  # (pixel_area, preference)
+        for th in thumbs:
+            if not isinstance(th, dict):
+                continue
+            url = th.get("url")
+            if not isinstance(url, str) or not url.strip():
+                continue
+            url = url.strip()
+            w = th.get("width") or 0
+            h = th.get("height") or 0
+            try:
+                area = int(w) * int(h) if w and h else 0
+            except (TypeError, ValueError):
+                area = 0
+            pref = th.get("preference")
+            try:
+                p = int(pref) if pref is not None else -9999
+            except (TypeError, ValueError):
+                p = -9999
+            score = (area, p)
+            if score > best_score:
+                best_score = score
+                best_url = url
+        if best_url:
+            return best_url
+        for th in reversed(thumbs):
+            if isinstance(th, dict):
+                u = th.get("url")
+                if isinstance(u, str) and u.strip():
+                    return u.strip()
+        return None
+
+    top = from_single(info)
+    if top:
+        return top
+    entries = info.get("entries")
+    if isinstance(entries, list):
+        for ent in entries:
+            if isinstance(ent, dict):
+                u = from_single(ent)
+                if u:
+                    return u
+    return None
+
+
 def _ytdlp_extract_info_sync(url: str, opts: dict):
     with yt_dlp.YoutubeDL(opts) as ydl:
         return ydl.extract_info(url, download=False)
@@ -465,7 +535,7 @@ async def extract_info(req: ExtractRequest):
 
     return {
         "title": info.get("title", "Unknown"),
-        "thumbnail": info.get("thumbnail"),
+        "thumbnail": _best_thumbnail_url(info),
         "duration": info.get("duration"),
         "uploader": info.get("uploader"),
         "platform": platform,

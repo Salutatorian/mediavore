@@ -7,6 +7,7 @@ import {
   Video,
   Music,
   X,
+  ImageOff,
 } from "lucide-react";
 import type { AppSettings } from "../App";
 
@@ -68,6 +69,11 @@ export default function URLInput({
   const [codec, setCodec] = useState(settings.videoCodec);
   const [audioFormat, setAudioFormat] = useState(settings.audioFormat);
   const [bitrate, setBitrate] = useState(settings.audioBitrate);
+  const [thumbBroken, setThumbBroken] = useState(false);
+
+  useEffect(() => {
+    setThumbBroken(false);
+  }, [mediaInfo?.thumbnail]);
 
   useEffect(() => {
     setQuality(settings.videoQuality);
@@ -336,14 +342,23 @@ export default function URLInput({
               <div className="border-t border-white/[0.06]">
                 {/* Title + meta */}
                 <div className="px-5 pt-4 pb-3 flex gap-3 items-start">
-                  {mediaInfo.thumbnail && (
+                  {mediaInfo.thumbnail && !thumbBroken ? (
                     <motion.img
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       src={mediaInfo.thumbnail}
                       alt=""
+                      referrerPolicy="no-referrer"
+                      onError={() => setThumbBroken(true)}
                       className="w-20 h-[52px] object-cover rounded-md shrink-0 bg-white/[0.03]"
                     />
+                  ) : (
+                    <div
+                      className="w-20 h-[52px] rounded-md shrink-0 bg-white/[0.03] border border-white/[0.06] flex items-center justify-center"
+                      title="No preview image from this host"
+                    >
+                      <ImageOff className="w-6 h-6 text-white/15" />
+                    </div>
                   )}
                   <div className="flex-1 min-w-0">
                     <p className="text-white/90 text-sm font-medium leading-snug line-clamp-2">

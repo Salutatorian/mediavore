@@ -1,0 +1,19 @@
+# Copy to:  Windows:  %USERPROFILE%\.cloudflared\config.yml
+#           Linux:   ~/.cloudflared/config.yml
+#
+# Replace:
+#   TUNNEL_UUID     — from: cloudflared tunnel create mediavore
+#   YOUR_USERNAME   — your Windows user folder name (if on Windows)
+#   mediavore.example.com — your real hostname (must be on Cloudflare DNS)
+
+tunnel: TUNNEL_UUID
+credentials-file: C:\Users\YOUR_USERNAME\.cloudflared\TUNNEL_UUID.json
+
+# Order matters: /api first, then the SPA.
+ingress:
+  - hostname: mediavore.example.com
+    path: /api/*
+    service: http://127.0.0.1:8000
+  - hostname: mediavore.example.com
+    service: http://127.0.0.1:5173
+  - service: http_status:404

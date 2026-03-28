@@ -10,6 +10,11 @@ Highlights: streaming downloads with attachment headers (mobile-friendly), live 
 
 A root [`.gitignore`](.gitignore) keeps secrets and heavy folders out of your repo. First-time setup and safer upload checklist: [`docs/GITHUB.md`](docs/GITHUB.md).
 
+**Go live — pick one:**
+
+- **Fast try (PC + Cloudflare Tunnel, free HTTPS):** [`docs/CLOUDFLARE-TUNNEL.md`](docs/CLOUDFLARE-TUNNEL.md)
+- **Production (VPS + Nginx + HTTPS):** [`docs/DEPLOY.md`](docs/DEPLOY.md)
+
 ## Prerequisites
 
 - **Python 3.11+** with pip

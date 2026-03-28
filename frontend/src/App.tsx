@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Settings } from "lucide-react";
+import { Settings, Heart } from "lucide-react";
 import PlanetScene from "./components/PlanetScene";
 import type { PlanetSceneHandle } from "./components/PlanetScene";
 import URLInput from "./components/URLInput";
@@ -8,6 +8,7 @@ import MediaLab from "./components/MediaLab";
 import HealthDashboard from "./components/HealthDashboard";
 import LegalPage from "./components/LegalPage";
 import type { LegalPageType } from "./components/LegalPage";
+import DonatePage from "./components/DonatePage";
 
 export interface AppSettings {
   videoQuality: string;
@@ -26,6 +27,7 @@ const DEFAULT_SETTINGS: AppSettings = {
 export default function App() {
   const [showMediaLab, setShowMediaLab] = useState(false);
   const [showHealth, setShowHealth] = useState(false);
+  const [showDonate, setShowDonate] = useState(false);
   const [legalPage, setLegalPage] = useState<LegalPageType | null>(null);
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [processing, setProcessing] = useState(false);
@@ -112,6 +114,13 @@ export default function App() {
           >
             <Settings className="w-5 h-5" />
           </button>
+          <button
+            onClick={() => setShowDonate(true)}
+            className="p-3 rounded-xl text-white/15 hover:text-pink-400 hover:bg-white/[0.03] transition-all duration-300"
+            title="Donate"
+          >
+            <Heart className="w-5 h-5" />
+          </button>
         </div>
 
         {/* Legal links */}
@@ -155,6 +164,12 @@ export default function App() {
       <AnimatePresence>
         {legalPage && (
           <LegalPage page={legalPage} onClose={() => setLegalPage(null)} />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showDonate && (
+          <DonatePage onClose={() => setShowDonate(false)} />
         )}
       </AnimatePresence>
     </div>
