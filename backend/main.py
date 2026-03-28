@@ -205,7 +205,7 @@ YTDLP_COMMON_OPTS = {
     "socket_timeout": 20,
     "windows_filenames": True,
     "restrictfilenames": True,
-    "remote_components": {"ejs": "github"},
+    "remote_components": ["ejs:github"],
     "extractor_args": {
         "youtube": {
             "player_client": "web,android,ios",
