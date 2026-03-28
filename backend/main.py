@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -18,6 +18,11 @@ from urllib.parse import parse_qs, quote, urlencode, urlparse, urlunparse
 
 class ExtractRequest(BaseModel):
     url: str
+
+
+class FeedbackRequest(BaseModel):
+    type: str  # "bug" or "feature"
+    message: str
 
 
 QUALITY_MAP = {"8k": 4320, "4k": 2160, "1080p": 1080, "720p": 720, "480p": 480}
@@ -497,6 +502,54 @@ async def check_health():
         version = "unknown"
 
     return {"platforms": results, "ytdlp_version": version}
+
+
+GITHUB_REPO = "Salutatorian/mediavore"
+GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")
+_feedback_timestamps: dict[str, float] = {}
+FEEDBACK_COOLDOWN = 60
+
+
+@app.post("/api/feedback")
+async def submit_feedback(req: FeedbackRequest, request: Request):
+    if not GITHUB_TOKEN:
+        raise HTTPException(status_code=503, detail="Feedback is not configured on this instance.")
+
+    msg = (req.message or "").strip()
+    if not msg or len(msg) < 5:
+        raise HTTPException(status_code=422, detail="Message must be at least 5 characters.")
+    if len(msg) > 2000:
+        raise HTTPException(status_code=422, detail="Message must be under 2000 characters.")
+
+    fb_type = (req.type or "bug").strip().lower()
+    if fb_type not in ("bug", "feature"):
+        raise HTTPException(status_code=422, detail='Type must be "bug" or "feature".')
+
+    client_ip = request.client.host if request.client else "unknown"
+    now = time.time()
+    last = _feedback_timestamps.get(client_ip, 0)
+    if now - last < FEEDBACK_COOLDOWN:
+        wait = int(FEEDBACK_COOLDOWN - (now - last))
+        raise HTTPException(status_code=429, detail=f"Please wait {wait}s before submitting again.")
+    _feedback_timestamps[client_ip] = now
+
+    label = "bug" if fb_type == "bug" else "enhancement"
+    title_prefix = "Bug Report" if fb_type == "bug" else "Feature Request"
+    title = f"[{title_prefix}] {msg[:80]}"
+
+    async with httpx.AsyncClient(timeout=15) as client:
+        resp = await client.post(
+            f"https://api.github.com/repos/{GITHUB_REPO}/issues",
+            headers={
+                "Authorization": f"Bearer {GITHUB_TOKEN}",
+                "Accept": "application/vnd.github+json",
+            },
+            json={"title": title, "body": msg, "labels": [label]},
+        )
+    if resp.status_code not in (200, 201):
+        raise HTTPException(status_code=502, detail="Failed to create issue. Try again later.")
+
+    return {"ok": True, "issue_url": resp.json().get("html_url")}
 
 
 @app.post("/api/extract")

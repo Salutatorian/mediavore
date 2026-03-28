@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Settings, Heart } from "lucide-react";
+import { Settings, Heart, MessageSquarePlus } from "lucide-react";
 import PlanetScene from "./components/PlanetScene";
 import type { PlanetSceneHandle } from "./components/PlanetScene";
 import URLInput from "./components/URLInput";
@@ -9,6 +9,7 @@ import HealthDashboard from "./components/HealthDashboard";
 import LegalPage from "./components/LegalPage";
 import type { LegalPageType } from "./components/LegalPage";
 import DonatePage from "./components/DonatePage";
+import FeedbackPage from "./components/FeedbackPage";
 
 export interface AppSettings {
   videoQuality: string;
@@ -28,6 +29,7 @@ export default function App() {
   const [showMediaLab, setShowMediaLab] = useState(false);
   const [showHealth, setShowHealth] = useState(false);
   const [showDonate, setShowDonate] = useState(false);
+  const [showFeedback, setShowFeedback] = useState(false);
   const [legalPage, setLegalPage] = useState<LegalPageType | null>(null);
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [processing, setProcessing] = useState(false);
@@ -115,6 +117,13 @@ export default function App() {
             <Settings className="w-5 h-5" />
           </button>
           <button
+            onClick={() => setShowFeedback(true)}
+            className="p-3 rounded-xl text-white/15 hover:text-violet-400 hover:bg-white/[0.03] transition-all duration-300"
+            title="Feedback"
+          >
+            <MessageSquarePlus className="w-5 h-5" />
+          </button>
+          <button
             onClick={() => setShowDonate(true)}
             className="p-3 rounded-xl text-white/15 hover:text-pink-400 hover:bg-white/[0.03] transition-all duration-300"
             title="Donate"
@@ -170,6 +179,12 @@ export default function App() {
       <AnimatePresence>
         {showDonate && (
           <DonatePage onClose={() => setShowDonate(false)} />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showFeedback && (
+          <FeedbackPage onClose={() => setShowFeedback(false)} />
         )}
       </AnimatePresence>
     </div>
