@@ -684,6 +684,11 @@ async def download_media(
 
     is_youtube = "youtube.com" in url or "youtu.be" in url
 
+    # iPhone / iOS: Safari and Files play MP4 (H.264 + AAC) reliably. Without this,
+    # merged DASH streams often become .webm or .mkv, which are flaky in iOS Downloads.
+    if dl_type == "video":
+        ydl_opts["merge_output_format"] = "mp4"
+
     if dl_type == "audio":
         if audio_format == "original":
             if is_youtube:
