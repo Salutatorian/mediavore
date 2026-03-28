@@ -48,6 +48,43 @@ function formatAudioPillLabel(key: string): string {
   return key.toUpperCase();
 }
 
+function formatBytes(n: number): string {
+  if (!Number.isFinite(n) || n < 0) return "0 B";
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+  return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+async function responseToBlobWithProgress(
+  res: Response,
+  onProgress: (received: number, total: number | null) => void,
+): Promise<Blob> {
+  const totalHdr = res.headers.get("Content-Length");
+  const total = totalHdr ? parseInt(totalHdr, 10) : NaN;
+  const knownTotal = Number.isFinite(total) && total > 0 ? total : null;
+
+  const body = res.body;
+  if (!body) {
+    const blob = await res.blob();
+    onProgress(blob.size, blob.size);
+    return blob;
+  }
+
+  const reader = body.getReader();
+  const chunks: BlobPart[] = [];
+  let received = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    if (value) {
+      chunks.push(value);
+      received += value.length;
+      onProgress(received, knownTotal);
+    }
+  }
+  return new Blob(chunks, { type: res.headers.get("Content-Type") || undefined });
+}
+
 const QUALITIES = ["8k", "4k", "1080p", "720p", "480p"];
 const CODECS = ["av1", "vp9", "h264"];
 const AUDIO_FORMATS = ["original", "mp3", "wav", "opus"];
@@ -70,6 +107,10 @@ export default function URLInput({
   const [audioFormat, setAudioFormat] = useState(settings.audioFormat);
   const [bitrate, setBitrate] = useState(settings.audioBitrate);
   const [thumbBroken, setThumbBroken] = useState(false);
+  const [downloadBytesReceived, setDownloadBytesReceived] = useState(0);
+  const [downloadBytesTotal, setDownloadBytesTotal] = useState<number | null>(
+    null,
+  );
 
   useEffect(() => {
     setThumbBroken(false);
@@ -145,6 +186,8 @@ export default function URLInput({
   const handleDownload = async () => {
     if (!url) return;
     setIsDownloading(true);
+    setDownloadBytesReceived(0);
+    setDownloadBytesTotal(null);
     setError("");
     onConsume?.();
 
@@ -174,7 +217,16 @@ export default function URLInput({
         return;
       }
 
-      const blob = await res.blob();
+      const lenHdr = res.headers.get("Content-Length");
+      if (lenHdr) {
+        const t = parseInt(lenHdr, 10);
+        if (Number.isFinite(t) && t > 0) setDownloadBytesTotal(t);
+      }
+
+      const blob = await responseToBlobWithProgress(res, (received, total) => {
+        setDownloadBytesReceived(received);
+        if (total != null) setDownloadBytesTotal(total);
+      });
       const blobUrl = URL.createObjectURL(blob);
 
       let filename = "mediavore-download";
@@ -208,6 +260,8 @@ export default function URLInput({
       );
     } finally {
       setIsDownloading(false);
+      setDownloadBytesReceived(0);
+      setDownloadBytesTotal(null);
     }
   };
 
@@ -308,6 +362,48 @@ export default function URLInput({
           <div className="px-5 pb-3">
             <p className="text-[12px] text-violet-400/50 font-mono">
               Pulling metadata…
+            </p>
+          </div>
+        )}
+
+        {/* ---- Download progress ---- */}
+        {isDownloading && mediaInfo && (
+          <div className="px-5 pb-4 space-y-2">
+            <div className="h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
+              {downloadBytesTotal != null && downloadBytesTotal > 0 ? (
+                <motion.div
+                  className="h-full rounded-full bg-violet-500/80"
+                  initial={{ width: 0 }}
+                  animate={{
+                    width: `${Math.min(
+                      100,
+                      (downloadBytesReceived / downloadBytesTotal) * 100,
+                    )}%`,
+                  }}
+                  transition={{ type: "spring", damping: 28, stiffness: 120 }}
+                />
+              ) : (
+                <div className="h-full w-full rounded-full bg-violet-500/25 animate-pulse" />
+              )}
+            </div>
+            <p className="text-[12px] text-violet-400/70 font-mono flex items-center justify-between gap-2">
+              <span>
+                {downloadBytesReceived === 0
+                  ? "Preparing on server…"
+                  : downloadBytesTotal != null && downloadBytesTotal > 0
+                    ? `${Math.min(
+                        100,
+                        Math.round(
+                          (downloadBytesReceived / downloadBytesTotal) * 100,
+                        ),
+                      )}% · ${formatBytes(downloadBytesReceived)} / ${formatBytes(
+                        downloadBytesTotal,
+                      )}`
+                    : `${formatBytes(downloadBytesReceived)} received…`}
+              </span>
+              <span className="text-white/25 shrink-0">
+                {downloadBytesReceived === 0 ? "wait" : "download"}
+              </span>
             </p>
           </div>
         )}
