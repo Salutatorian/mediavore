@@ -692,6 +692,7 @@ async def download_media(
             ydl_opts["format"] = (
                 f"bestvideo[height<={height}][vcodec^={vcodec}]+bestaudio/"
                 f"bestvideo[height<={height}]+bestaudio/"
+                f"bestvideo+bestaudio/"
                 f"best[height<={height}]/best"
             )
         else:

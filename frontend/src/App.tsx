@@ -45,7 +45,19 @@ export default function App() {
 
       {/* Center — logo + oasis bar as one unit */}
       <main className="relative z-10 flex-1 flex items-center justify-center px-4 md:px-6">
-        <div className="w-full max-w-xl mx-auto">
+        {/* Ambient glow behind center content */}
+        <div
+          className="absolute pointer-events-none"
+          style={{
+            width: "700px",
+            height: "500px",
+            background: "radial-gradient(ellipse at center, rgba(139,92,246,0.06) 0%, rgba(139,92,246,0.02) 40%, transparent 70%)",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+          }}
+        />
+        <div className="relative w-full max-w-xl mx-auto">
           {/* Logo */}
           <motion.div
             initial={{ opacity: 0, y: 15 }}

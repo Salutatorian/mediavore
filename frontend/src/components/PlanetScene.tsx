@@ -99,10 +99,10 @@ const FRAGMENT = /* glsl */ `
       col = darkCol;
     }
 
-    // Rim glow
+    // Rim glow — stronger so planet outline is always visible
     float rim = 1.0 - max(dot(N, vec3(0.0, 0.0, 1.0)), 0.0);
-    rim = pow(rim, 3.0);
-    col += vec3(0.50, 0.22, 0.92) * rim * 0.4;
+    rim = pow(rim, 2.5);
+    col += vec3(0.55, 0.28, 0.95) * rim * 0.6;
 
     // Consume: flash bright violet, then fade to dark
     col = mix(col, vec3(0.55, 0.20, 1.0), uConsume * 0.6);
