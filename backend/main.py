@@ -56,6 +56,17 @@ def _cookie_opts() -> dict:
     return {}
 
 
+def _proxy_opts() -> dict:
+    """
+    Optional HTTP(S) proxy for all yt-dlp traffic (often needed for YouTube from datacenter IPs).
+    Set env MEDIAVORE_PROXY, e.g. http://user:pass@host:port
+    """
+    p = (os.environ.get("MEDIAVORE_PROXY") or "").strip()
+    if p:
+        return {"proxy": p}
+    return {}
+
+
 def _needs_cookies_hint(url: str) -> str | None:
     low = (url or "").lower()
     if "twitter.com" in low or "x.com" in low:
@@ -191,7 +202,7 @@ def _ffmpeg_location_from_env() -> dict:
 
 
 def _ytdlp_opts(base: dict) -> dict:
-    return {**base, **_ffmpeg_location_from_env(), **_cookie_opts()}
+    return {**base, **_ffmpeg_location_from_env(), **_cookie_opts(), **_proxy_opts()}
 
 
 # YouTube often returns "Video unavailable" for the default web client even when
@@ -452,6 +463,7 @@ async def instance_info():
             "yt_dlp_ffmpeg_location": ytdlp_ffmpeg,
             "env_warning": _ffmpeg_env_placeholder_warning(),
             "cookies_file": COOKIES_FILE if os.path.isfile(COOKIES_FILE) else None,
+            "proxy_configured": bool((os.environ.get("MEDIAVORE_PROXY") or "").strip()),
         },
         "engine": {
             "name": "yt-dlp",
