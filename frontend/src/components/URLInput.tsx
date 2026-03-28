@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowRight,
@@ -206,21 +207,23 @@ export default function URLInput({
 
   useEffect(() => {
     if (!url || !isValidUrl(url)) {
+      extractUrlScheduledRef.current = null;
+      revokeFileReady();
       setMediaInfo(null);
       setError("");
-      extractUrlScheduledRef.current = null;
       return;
     }
     /* Only clear metadata when the URL string actually changes — not when
      * extractInfo is recreated, or a long download can lose mediaInfo and break UI. */
     if (extractUrlScheduledRef.current !== url) {
+      revokeFileReady();
       setMediaInfo(null);
       setError("");
       extractUrlScheduledRef.current = url;
     }
     const timer = setTimeout(() => extractInfo(url), 600);
     return () => clearTimeout(timer);
-  }, [url, extractInfo]);
+  }, [url, extractInfo, revokeFileReady]);
 
   const handleDownload = async () => {
     if (!url) return;
@@ -268,6 +271,13 @@ export default function URLInput({
         setDownloadBytesReceived(received);
         if (total != null) setDownloadBytesTotal(total);
       });
+
+      if (!blob.size) {
+        setError(
+          "Download finished but the file was empty. Try again or pick a different format.",
+        );
+        return;
+      }
 
       let filename = "mediavore-download";
       const cd = res.headers.get("Content-Disposition");
@@ -326,6 +336,50 @@ export default function URLInput({
     isFocused || mediaInfo
       ? "0 0 40px rgba(139,92,246,0.10), 0 0 80px rgba(139,92,246,0.04)"
       : "none";
+
+  const fileReadyBanner =
+    fileReady &&
+    !isDownloading &&
+    typeof document !== "undefined" &&
+    createPortal(
+      <div
+        className="fixed left-1/2 z-[200] w-[min(28rem,calc(100vw-2rem))] -translate-x-1/2 rounded-2xl border border-violet-500/35 bg-[#0a0a0f]/95 p-4 shadow-[0_0_40px_rgba(139,92,246,0.2)] backdrop-blur-xl"
+        style={{
+          bottom: "calc(1rem + env(safe-area-inset-bottom, 0px))",
+        }}
+        role="status"
+        aria-live="polite"
+      >
+        <p className="text-[13px] font-medium text-emerald-300/95">
+          Download ready
+        </p>
+        <p className="mt-1 text-[12px] text-white/55 font-mono break-all">
+          {formatBytes(fileReady.size)}
+          {fileReady.filename ? ` · ${fileReady.filename}` : ""}
+        </p>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={saveToDevice}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-violet-600 text-white text-sm font-medium hover:bg-violet-500 transition-colors"
+          >
+            <Download className="w-4 h-4" />
+            Save to device
+          </button>
+          <button
+            type="button"
+            onClick={revokeFileReady}
+            className="px-3 py-2 text-[12px] text-white/35 hover:text-white/55 font-mono"
+          >
+            Discard
+          </button>
+        </div>
+        <p className="mt-2 text-[11px] text-white/30 font-mono leading-relaxed">
+          iPhone: Safari may open the file first — use Share → Save to Files.
+        </p>
+      </div>,
+      document.body,
+    );
 
   return (
     <motion.div
@@ -417,38 +471,8 @@ export default function URLInput({
           </div>
         )}
 
-        {/* ---- File ready (two-step: fetch here, then save to device) ---- */}
-        {fileReady && !isDownloading && (
-          <div className="px-5 pb-4 border-t border-white/[0.06] pt-4 space-y-3">
-            <p className="text-[12px] text-emerald-400/80 font-mono">
-              Ready on this page · {formatBytes(fileReady.size)}
-              {fileReady.filename ? ` · ${fileReady.filename}` : ""}
-            </p>
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={saveToDevice}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-violet-600 text-white text-sm font-medium hover:bg-violet-500 transition-colors"
-              >
-                <Download className="w-4 h-4" />
-                Save to device
-              </button>
-              <button
-                type="button"
-                onClick={revokeFileReady}
-                className="px-3 py-2 text-[12px] text-white/25 hover:text-white/45 font-mono"
-              >
-                Discard
-              </button>
-            </div>
-            <p className="text-[11px] text-white/20 font-mono leading-relaxed">
-              iPhone: file opens in Safari first, then use Share → Save to Files.
-            </p>
-          </div>
-        )}
-
         {/* ---- Download progress ---- */}
-        {isDownloading && mediaInfo && (
+        {isDownloading && (
           <div className="px-5 pb-4 space-y-2">
             <div className="h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
               {downloadBytesTotal != null && downloadBytesTotal > 0 ? (
@@ -470,7 +494,9 @@ export default function URLInput({
             <p className="text-[12px] text-violet-400/70 font-mono flex items-center justify-between gap-2">
               <span>
                 {downloadBytesReceived === 0
-                  ? "Preparing on server…"
+                  ? mediaInfo
+                    ? "Preparing on server…"
+                    : "Fetching file…"
                   : downloadBytesTotal != null && downloadBytesTotal > 0
                     ? `${Math.min(
                         100,
@@ -620,6 +646,7 @@ export default function URLInput({
           )}
         </AnimatePresence>
       </motion.div>
+      {fileReadyBanner}
     </motion.div>
   );
 }
