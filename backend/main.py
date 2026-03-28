@@ -620,19 +620,22 @@ def _download_error_detail(exc: Exception) -> str:
             "(must contain ffmpeg.exe and ffprobe.exe). See docs/WINDOWS-FFMPEG.md\n\n"
             "Download: https://ffmpeg.org/download.html (full build with ffprobe, not ffmpeg.exe only)."
         )
+    if ("sign in" in low and "bot" in low) or "requested format is not available" in low:
+        return (
+            "YouTube is temporarily unavailable. YouTube actively blocks downloads "
+            "from cloud servers. Try again later, or try a different platform like "
+            "Instagram, TikTok, SoundCloud, Reddit, or Twitch."
+        )
     if "cookie" in low or "login" in low or "not granting access" in low or "empty media response" in low:
         return (
-            f"{msg}\n\n"
-            "This platform requires login cookies. Place a Netscape-format cookies.txt "
-            "file in the backend/ folder (next to main.py) exported from your browser. "
-            "See: https://github.com/yt-dlp/yt-dlp/wiki/FAQ#how-do-i-pass-cookies-to-yt-dlp"
+            "This platform requires authentication to download. "
+            "The server may not have valid credentials for this service right now. "
+            "Try again later."
         )
     if "no video could be found" in low:
         return (
-            f"{msg}\n\n"
-            "Twitter/X often requires authentication. Export your browser cookies as "
-            "cookies.txt into the backend/ folder. If the tweet has no video, only "
-            "image tweets can't be downloaded."
+            "No downloadable video found. If this is a Twitter/X link, "
+            "image-only tweets can't be downloaded — only tweets with video."
         )
     return msg
 
