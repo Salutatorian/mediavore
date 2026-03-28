@@ -83,9 +83,9 @@ const FRAGMENT = /* glsl */ `
     vec2 ditherCoord = floor(gl_FragCoord.xy / pixelSize);
     float threshold  = bayer8(ditherCoord);
 
-    vec3 litCol    = vec3(0.72, 0.42, 1.0);     // electric violet
-    vec3 shadowCol = vec3(0.35, 0.14, 0.65);    // deep purple
-    vec3 darkCol   = vec3(0.10, 0.04, 0.18);    // visible dark purple
+    vec3 litCol    = vec3(0.68, 0.38, 1.0);     // electric violet
+    vec3 shadowCol = vec3(0.32, 0.12, 0.62);    // deep purple
+    vec3 darkCol   = vec3(0.12, 0.05, 0.20);    // visible dark purple
 
     vec3 col;
     if (wrap > 0.55) {
@@ -204,7 +204,7 @@ const PlanetScene = forwardRef<PlanetSceneHandle, PlanetSceneProps>(
 
       /* ---------- Giant Sun ---------- */
       const segments = isMobile ? 48 : 64;
-      const planetGeo = new THREE.SphereGeometry(2.4, segments, segments);
+      const planetGeo = new THREE.SphereGeometry(3.2, segments, segments);
       const uniforms = {
         uLightDir: { value: new THREE.Vector3(1, 1, 1).normalize() },
         uTime:     { value: 0 },
@@ -218,6 +218,34 @@ const PlanetScene = forwardRef<PlanetSceneHandle, PlanetSceneProps>(
       });
       const planet = new THREE.Mesh(planetGeo, planetMat);
       scene.add(planet);
+
+      /* ---------- Atmosphere glow — subtle edge corona ---------- */
+      const atmosGeo = new THREE.SphereGeometry(3.5, 48, 48);
+      const atmosMat = new THREE.ShaderMaterial({
+        vertexShader: /* glsl */ `
+          varying vec3 vNormal;
+          void main() {
+            vNormal = normalize(normalMatrix * normal);
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+          }
+        `,
+        fragmentShader: /* glsl */ `
+          precision mediump float;
+          varying vec3 vNormal;
+          void main() {
+            float rim = dot(vNormal, vec3(0.0, 0.0, 1.0));
+            float intensity = pow(0.55 - rim, 4.0);
+            intensity = clamp(intensity, 0.0, 1.0) * 0.18;
+            gl_FragColor = vec4(0.42, 0.18, 0.85, intensity);
+          }
+        `,
+        side: THREE.BackSide,
+        blending: THREE.AdditiveBlending,
+        transparent: true,
+        depthWrite: false,
+      });
+      const atmosphere = new THREE.Mesh(atmosGeo, atmosMat);
+      scene.add(atmosphere);
 
       /* ---------- Debris ---------- */
       const debris = createDebris(scene, isMobile);
@@ -301,9 +329,12 @@ const PlanetScene = forwardRef<PlanetSceneHandle, PlanetSceneProps>(
         const boost = 1 + pulseSmooth * 3 + c.value * 5;
         planet.rotation.y += baseSpeed * boost * dt;
 
-        // 5% parallax: sun drifts with mouse
+        // 5% parallax: sun drifts with mouse, offset down so rim shows above content
         planet.position.x = smoothMouseX * 0.15;
-        planet.position.y = smoothMouseY * 0.1 + Math.sin(t * 0.5) * 0.06;
+        planet.position.y = smoothMouseY * 0.1 - 0.9 + Math.sin(t * 0.5) * 0.06;
+
+        // Atmosphere follows planet
+        atmosphere.position.copy(planet.position);
 
         // Debris
         for (const d of debris) {

@@ -203,9 +203,9 @@ YTDLP_COMMON_OPTS = {
     "no_warnings": True,
     "noplaylist": True,
     "socket_timeout": 20,
-    # Windows: titles with : ? | " * etc. cause [Errno 22] Invalid argument on open().
     "windows_filenames": True,
     "restrictfilenames": True,
+    "remote_components": {"ejs": "github"},
     "extractor_args": {
         "youtube": {
             "player_client": "web,android,ios",
