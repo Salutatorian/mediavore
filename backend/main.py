@@ -227,6 +227,7 @@ def _build_display_filename(info: dict, dl_type: str, quality: str, ext: str) ->
     """Build a clean, descriptive filename from yt-dlp metadata for the browser download."""
     title = (info.get("title") or "mediavore-download").strip()
     title = re.sub(r'[<>:"/\\|?*\x00-\x1f]', '', title)
+    title = title.encode("ascii", "ignore").decode("ascii")
     title = re.sub(r'\s+', '_', title)
     title = re.sub(r'_+', '_', title).strip('_')
     if not title:
