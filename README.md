@@ -93,11 +93,13 @@ A background task runs `pip install -U yt-dlp` every 12 hours to stay ahead of 2
 
 YouTube often blocks or challenges **datacenter IPs**. Mediavore can’t guarantee access; you can improve odds:
 
+- **Keep yt-dlp current** — the backend runs `pip install -U yt-dlp` on a timer; redeploy or restart after major YouTube changes.
 - **`MEDIAVORE_PROXY`** — HTTP(S) proxy (some operators use a residential-friendly proxy).
-- **Cookies** — Export a Netscape `cookies.txt` from a browser where you are signed into YouTube (e.g. “Get cookies.txt LOCALLY”), then set **`MEDIAVORE_COOKIES_FILE`** to that path, or place `backend/cookies.txt` next to `main.py`.
-- **`MEDIAVORE_YOUTUBE_PLAYER_CLIENT`** — Override the default `android,ios,web` if a future yt-dlp release recommends another order.
+- **Cookies (often required on VPS)** — Export a fresh Netscape `cookies.txt` from a browser where you are signed into YouTube (e.g. “Get cookies.txt LOCALLY”), then set **`MEDIAVORE_COOKIES_FILE`** or place `backend/cookies.txt` next to `main.py`. Cookies expire; re-export when downloads fail again.
+- **`MEDIAVORE_YOUTUBE_PLAYER_CLIENT`** — Override the default `android,ios,tv_embedded,web` if needed (shorter lists fail faster; longer lists try more clients).
+- **Optional (advanced)** — **`MEDIAVORE_YOUTUBE_PO_TOKEN`**, **`MEDIAVORE_YOUTUBE_VISITOR_DATA`**: see [yt-dlp PO Token Guide](https://github.com/yt-dlp/yt-dlp/wiki/PO-Token-Guide). These help some player flows; they do not replace cookies/proxy for every IP block.
 
-Check **`GET /api/instance`** → `diagnostics` for `cookies_file_active`, `proxy_configured`, and `youtube_player_client`.
+Check **`GET /api/instance`** → `diagnostics` for `cookies_file_active`, `proxy_configured`, `youtube_player_client`, and PO-token flags.
 
 ## License
 

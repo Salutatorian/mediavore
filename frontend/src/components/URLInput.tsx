@@ -93,6 +93,54 @@ const QUALITIES = ["8k", "4k", "1080p", "720p", "480p"];
 const CODECS = ["av1", "vp9", "h264"];
 const AUDIO_FORMATS = ["original", "mp3", "wav", "opus"];
 
+/** yt-dlp extractor id prefix — these hosts are audio-first; default VIDEO mode breaks downloads. */
+const AUDIO_FIRST_PLATFORMS = new Set([
+  "soundcloud",
+  "bandcamp",
+  "mixcloud",
+  "audiomack",
+  "hearthis",
+]);
+
+/** Windows reserved device names — Chrome/Edge may drop downloads with these basenames. */
+const WIN_RESERVED = new Set([
+  "con",
+  "prn",
+  "aux",
+  "nul",
+  "com1",
+  "com2",
+  "com3",
+  "com4",
+  "com5",
+  "com6",
+  "com7",
+  "com8",
+  "com9",
+  "lpt1",
+  "lpt2",
+  "lpt3",
+  "lpt4",
+  "lpt5",
+  "lpt6",
+  "lpt7",
+  "lpt8",
+  "lpt9",
+]);
+
+function sanitizeDownloadFilename(name: string): string {
+  const cleaned =
+    name.replace(/[<>:"/\\|?*\x00-\x1f]/g, "").trim() || "mediavore-download";
+  const lastDot = cleaned.lastIndexOf(".");
+  const stem =
+    lastDot >= 0 ? cleaned.slice(0, lastDot) : cleaned;
+  const ext = lastDot >= 0 ? cleaned.slice(lastDot) : "";
+  if (stem && WIN_RESERVED.has(stem.toLowerCase())) {
+    return `_${stem}${ext}`;
+  }
+  return cleaned;
+}
+
 export default function URLInput({
   settings,
   clientProfile,
@@ -150,6 +198,21 @@ export default function URLInput({
     setAudioFormat(settings.audioFormat);
     setBitrate(settings.audioBitrate);
   }, [settings]);
+
+  const autoAudioForUrlRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    autoAudioForUrlRef.current = null;
+  }, [url]);
+
+  useEffect(() => {
+    if (!mediaInfo?.platform || !url) return;
+    const base = mediaInfo.platform.toLowerCase().split(":")[0];
+    if (!AUDIO_FIRST_PLATFORMS.has(base)) return;
+    if (autoAudioForUrlRef.current === url) return;
+    autoAudioForUrlRef.current = url;
+    setMediaType("audio");
+  }, [mediaInfo?.platform, url]);
 
   const extractInfo = useCallback(
     async (inputUrl: string) => {
@@ -245,7 +308,10 @@ export default function URLInput({
     });
 
     try {
-      const res = await fetch(`/api/download?${params}`);
+      const res = await fetch(`/api/download?${params}`, {
+        cache: "no-store",
+        credentials: "same-origin",
+      });
       if (!res.ok) {
         let detail = "Download failed";
         try {
@@ -316,7 +382,7 @@ export default function URLInput({
     if (!fileReady) return;
     const a = document.createElement("a");
     a.href = fileReady.blobUrl;
-    a.download = fileReady.filename;
+    a.download = sanitizeDownloadFilename(fileReady.filename);
     a.rel = "noopener";
     document.body.appendChild(a);
     a.click();

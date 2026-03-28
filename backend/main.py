@@ -90,6 +90,42 @@ def _needs_cookies_hint(url: str) -> str | None:
         return "instagram"
     return None
 
+
+def _audio_primary_url(url: str) -> bool:
+    """
+    Music / audio hosts: the UI defaults to type=video, but these URLs have no
+    video stream. Forcing bestvideo+bestaudio + FFmpegVideoRemuxer breaks or
+    fails yt-dlp; treat downloads as audio instead.
+    """
+    low = (url or "").lower()
+    return any(
+        h in low
+        for h in (
+            "soundcloud.com",
+            "on.soundcloud.com",
+            "bandcamp.com",
+            "mixcloud.com",
+            "audiomack.com",
+            "hearthis.at",
+        )
+    )
+
+
+def _safe_attachment_filename(name: str) -> str:
+    """Windows reserves CON, PRN, … — Chrome/Edge can refuse saves with those basenames."""
+    name = (name or "").strip() or "mediavore-download"
+    stem, ext = os.path.splitext(name)
+    if not stem:
+        stem = "mediavore-download"
+    reserved = {
+        "con", "prn", "aux", "nul",
+        "com1", "com2", "com3", "com4", "com5", "com6", "com7", "com8", "com9",
+        "lpt1", "lpt2", "lpt3", "lpt4", "lpt5", "lpt6", "lpt7", "lpt8", "lpt9",
+    }
+    if stem.lower() in reserved:
+        stem = f"_{stem}"
+    return f"{stem}{ext}"
+
 def normalize_media_url(url: str) -> str:
     """
     Watch URLs copied from YouTube often include &list=RD...&start_radio=1.
@@ -222,28 +258,47 @@ def _ytdlp_opts(base: dict) -> dict:
 
 def _youtube_player_client_string() -> str:
     """
-    YouTube from datacenter IPs: the web client is most often hit with "sign in / bot"
-    checks. Prefer android/ios before web (shorter fallback chain — see YTDLP_COMMON_OPTS).
-    Override: MEDIAVORE_YOUTUBE_PLAYER_CLIENT=web,android,ios
+    YouTube from datacenter IPs: web is often hit with "sign in / bot" first.
+    Default order: mobile/TV clients before web. `tv_embedded` sometimes works when web does not.
+    Override: MEDIAVORE_YOUTUBE_PLAYER_CLIENT=android,ios,web
     """
-    return (os.environ.get("MEDIAVORE_YOUTUBE_PLAYER_CLIENT") or "android,ios,web").strip()
+    return (
+        os.environ.get("MEDIAVORE_YOUTUBE_PLAYER_CLIENT") or "android,ios,tv_embedded,web"
+    ).strip()
+
+
+def _youtube_extractor_args() -> dict:
+    """
+    Optional advanced YouTube args (see yt-dlp wiki: PO Token Guide, Extractors).
+    PO token / visitor_data can help GVS/player requests; they still may not fix raw IP blocks.
+    """
+    d: dict = {"player_client": _youtube_player_client_string()}
+    po = (os.environ.get("MEDIAVORE_YOUTUBE_PO_TOKEN") or "").strip()
+    if po:
+        d["po_token"] = po
+    vd = (os.environ.get("MEDIAVORE_YOUTUBE_VISITOR_DATA") or "").strip()
+    if vd:
+        d["visitor_data"] = vd
+    # e.g. webpage,configs — only if you know you need it (can break some flows)
+    sk = (os.environ.get("MEDIAVORE_YOUTUBE_PLAYER_SKIP") or "").strip()
+    if sk:
+        d["player_skip"] = sk
+    return d
 
 
 def _build_ytdlp_common_opts() -> dict:
-    # YouTube: short client list — long chains make every paste feel stuck (timeouts).
+    # YouTube: keep client list reasonable — very long chains make every paste feel stuck.
     # noplaylist: watch URLs with &list= must not expand into playlist/radio processing.
     return {
         "quiet": True,
         "no_warnings": True,
         "noplaylist": True,
-        "socket_timeout": 20,
+        "socket_timeout": 30,
         "windows_filenames": True,
         "restrictfilenames": True,
         "remote_components": ["ejs:github"],
         "extractor_args": {
-            "youtube": {
-                "player_client": _youtube_player_client_string(),
-            },
+            "youtube": _youtube_extractor_args(),
         },
     }
 
@@ -490,6 +545,12 @@ async def instance_info():
             "env_warning": _ffmpeg_env_placeholder_warning(),
             "cookies_file_active": _resolve_cookiefile(),
             "youtube_player_client": _youtube_player_client_string(),
+            "youtube_po_token_configured": bool(
+                (os.environ.get("MEDIAVORE_YOUTUBE_PO_TOKEN") or "").strip()
+            ),
+            "youtube_visitor_data_configured": bool(
+                (os.environ.get("MEDIAVORE_YOUTUBE_VISITOR_DATA") or "").strip()
+            ),
             "proxy_configured": bool((os.environ.get("MEDIAVORE_PROXY") or "").strip()),
         },
         "engine": {
@@ -708,6 +769,9 @@ async def download_media(
             detail='Invalid type= (use "video" or "audio").',
         )
 
+    if _audio_primary_url(url) and dl_type == "video":
+        dl_type = "audio"
+
     tmp_dir = _mediavore_mkdtemp()
     # Short ASCII basename — avoids reserved names, odd ids, and merge temp edge cases.
     output_template = os.path.join(tmp_dir, "m.%(ext)s")
@@ -794,7 +858,9 @@ async def download_media(
         )
 
     ext = os.path.splitext(downloaded_file)[1].lower()
-    display_name = _build_display_filename(dl_info, dl_type, quality, ext)
+    display_name = _safe_attachment_filename(
+        _build_display_filename(dl_info, dl_type, quality, ext),
+    )
     content_types = {
         ".mp4": "video/mp4",
         ".webm": "video/webm",
