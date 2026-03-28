@@ -155,7 +155,9 @@ export default function URLInput({
       setIsExtracting(true);
       onProcessingChange?.(true);
       setError("");
-      setMediaInfo(null);
+      /* Do not setMediaInfo(null) here — if extract re-runs for the same URL
+       * (e.g. extractInfo callback identity changed), clearing metadata would
+       * hide the "file ready" UI after download because fileReady requires mediaInfo. */
       const controller = new AbortController();
       const timeoutMs = 85000;
       const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
@@ -200,11 +202,21 @@ export default function URLInput({
     [onProcessingChange],
   );
 
+  const extractUrlScheduledRef = useRef<string | null>(null);
+
   useEffect(() => {
     if (!url || !isValidUrl(url)) {
       setMediaInfo(null);
       setError("");
+      extractUrlScheduledRef.current = null;
       return;
+    }
+    /* Only clear metadata when the URL string actually changes — not when
+     * extractInfo is recreated, or a long download can lose mediaInfo and break UI. */
+    if (extractUrlScheduledRef.current !== url) {
+      setMediaInfo(null);
+      setError("");
+      extractUrlScheduledRef.current = url;
     }
     const timer = setTimeout(() => extractInfo(url), 600);
     return () => clearTimeout(timer);
@@ -406,10 +418,11 @@ export default function URLInput({
         )}
 
         {/* ---- File ready (two-step: fetch here, then save to device) ---- */}
-        {fileReady && mediaInfo && !isDownloading && (
+        {fileReady && !isDownloading && (
           <div className="px-5 pb-4 border-t border-white/[0.06] pt-4 space-y-3">
             <p className="text-[12px] text-emerald-400/80 font-mono">
               Ready on this page · {formatBytes(fileReady.size)}
+              {fileReady.filename ? ` · ${fileReady.filename}` : ""}
             </p>
             <div className="flex flex-wrap items-center gap-2">
               <button

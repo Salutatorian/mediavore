@@ -15,7 +15,9 @@ interface HealthData {
 }
 
 interface InstanceDiag {
-  cookies_file: string | null;
+  cookies_file?: string | null;
+  /** Resolved path passed to yt-dlp (replaces cookies_file). */
+  cookies_file_active?: string | null;
 }
 
 const STATUS_THEME = {
@@ -81,7 +83,10 @@ export default function HealthDashboard({ onClose }: { onClose: () => void }) {
     }
   }
 
-  const hasCookies = !!diag?.cookies_file;
+  const hasCookies = !!(
+    diag?.cookies_file_active ??
+    diag?.cookies_file
+  );
 
   return (
     <>

@@ -89,6 +89,16 @@ The backend uses `StreamingResponse` with `Content-Disposition: attachment`, whi
 
 A background task runs `pip install -U yt-dlp` every 12 hours to stay ahead of 2026 platform changes.
 
+## YouTube from a VPS (bot / “sign in” errors)
+
+YouTube often blocks or challenges **datacenter IPs**. Mediavore can’t guarantee access; you can improve odds:
+
+- **`MEDIAVORE_PROXY`** — HTTP(S) proxy (some operators use a residential-friendly proxy).
+- **Cookies** — Export a Netscape `cookies.txt` from a browser where you are signed into YouTube (e.g. “Get cookies.txt LOCALLY”), then set **`MEDIAVORE_COOKIES_FILE`** to that path, or place `backend/cookies.txt` next to `main.py`.
+- **`MEDIAVORE_YOUTUBE_PLAYER_CLIENT`** — Override the default `android,ios,web` if a future yt-dlp release recommends another order.
+
+Check **`GET /api/instance`** → `diagnostics` for `cookies_file_active`, `proxy_configured`, and `youtube_player_client`.
+
 ## License
 
 Mediavore source code is licensed under [AGPL-3.0](LICENSE). If you host a modified version publicly, you must share your changes under the same license.

@@ -49,10 +49,25 @@ COOKIE_REQUIRED_PLATFORMS = {"twitter", "instagram", "instagram:story"}
 COOKIES_FILE = os.path.join(os.path.dirname(__file__), "cookies.txt")
 
 
-def _cookie_opts() -> dict:
-    """If cookies.txt exists alongside main.py, pass it to yt-dlp for authenticated platforms."""
+def _resolve_cookiefile() -> str | None:
+    """
+    Netscape-format cookies for yt-dlp (YouTube bot challenges, age-gated sites, etc.).
+    Prefer MEDIAVORE_COOKIES_FILE when set and the file exists; else backend/cookies.txt.
+    """
+    env_path = (os.environ.get("MEDIAVORE_COOKIES_FILE") or "").strip().strip('"')
+    if env_path:
+        p = os.path.normpath(env_path)
+        if os.path.isfile(p):
+            return p
     if os.path.isfile(COOKIES_FILE):
-        return {"cookiefile": COOKIES_FILE}
+        return COOKIES_FILE
+    return None
+
+
+def _cookie_opts() -> dict:
+    p = _resolve_cookiefile()
+    if p:
+        return {"cookiefile": p}
     return {}
 
 
@@ -205,24 +220,35 @@ def _ytdlp_opts(base: dict) -> dict:
     return {**base, **_ffmpeg_location_from_env(), **_cookie_opts(), **_proxy_opts()}
 
 
-# YouTube often returns "Video unavailable" for the default web client even when
-# the video is public. A short fallback chain is enough; long chains make *every*
-# paste feel stuck (each client can add 20s+ on timeouts).
-# noplaylist: watch URLs with &list= must not expand into playlist/radio processing.
-YTDLP_COMMON_OPTS = {
-    "quiet": True,
-    "no_warnings": True,
-    "noplaylist": True,
-    "socket_timeout": 20,
-    "windows_filenames": True,
-    "restrictfilenames": True,
-    "remote_components": ["ejs:github"],
-    "extractor_args": {
-        "youtube": {
-            "player_client": "web,android,ios",
+def _youtube_player_client_string() -> str:
+    """
+    YouTube from datacenter IPs: the web client is most often hit with "sign in / bot"
+    checks. Prefer android/ios before web (shorter fallback chain — see YTDLP_COMMON_OPTS).
+    Override: MEDIAVORE_YOUTUBE_PLAYER_CLIENT=web,android,ios
+    """
+    return (os.environ.get("MEDIAVORE_YOUTUBE_PLAYER_CLIENT") or "android,ios,web").strip()
+
+
+def _build_ytdlp_common_opts() -> dict:
+    # YouTube: short client list — long chains make every paste feel stuck (timeouts).
+    # noplaylist: watch URLs with &list= must not expand into playlist/radio processing.
+    return {
+        "quiet": True,
+        "no_warnings": True,
+        "noplaylist": True,
+        "socket_timeout": 20,
+        "windows_filenames": True,
+        "restrictfilenames": True,
+        "remote_components": ["ejs:github"],
+        "extractor_args": {
+            "youtube": {
+                "player_client": _youtube_player_client_string(),
+            },
         },
-    },
-}
+    }
+
+
+YTDLP_COMMON_OPTS = _build_ytdlp_common_opts()
 
 # Metadata-only extract: skip downloading subtitles, thumbnails, etc. = faster.
 YTDLP_EXTRACT_OPTS = {
@@ -462,7 +488,8 @@ async def instance_info():
             "mediavore_ffmpeg_dir_env": ff_dir or None,
             "yt_dlp_ffmpeg_location": ytdlp_ffmpeg,
             "env_warning": _ffmpeg_env_placeholder_warning(),
-            "cookies_file": COOKIES_FILE if os.path.isfile(COOKIES_FILE) else None,
+            "cookies_file_active": _resolve_cookiefile(),
+            "youtube_player_client": _youtube_player_client_string(),
             "proxy_configured": bool((os.environ.get("MEDIAVORE_PROXY") or "").strip()),
         },
         "engine": {
@@ -634,9 +661,13 @@ def _download_error_detail(exc: Exception) -> str:
         )
     if ("sign in" in low and "bot" in low) or "requested format is not available" in low:
         return (
-            "YouTube is temporarily unavailable. YouTube actively blocks downloads "
-            "from cloud servers. Try again later, or try a different platform like "
-            "Instagram, TikTok, SoundCloud, Reddit, or Twitch."
+            "YouTube is temporarily unavailable. YouTube often blocks or challenges "
+            "requests from cloud/datacenter IPs.\n\n"
+            "If you run your own server: keep yt-dlp updated, set MEDIAVORE_PROXY to a "
+            "residential-friendly proxy if you can, and add a Netscape cookies.txt from "
+            "a browser where you are signed into YouTube (MEDIAVORE_COOKIES_FILE or "
+            "backend/cookies.txt). None of this is guaranteed — YouTube controls access.\n\n"
+            "Otherwise try again later, or use another supported platform."
         )
     if "cookie" in low or "login" in low or "not granting access" in low or "empty media response" in low:
         return (
