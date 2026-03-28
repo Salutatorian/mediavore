@@ -137,7 +137,7 @@ export default function FeedbackPage({ onClose }: { onClose: () => void }) {
               {/* Submit */}
               <button
                 onClick={handleSubmit}
-                disabled={!canSubmit || status === "sending"}
+                disabled={!canSubmit}
                 className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${
                   canSubmit
                     ? "bg-violet-500/15 border border-violet-500/30 text-violet-300 hover:bg-violet-500/25"

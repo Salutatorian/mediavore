@@ -83,9 +83,9 @@ const FRAGMENT = /* glsl */ `
     vec2 ditherCoord = floor(gl_FragCoord.xy / pixelSize);
     float threshold  = bayer8(ditherCoord);
 
-    vec3 litCol    = vec3(0.68, 0.38, 1.0);     // electric violet
-    vec3 shadowCol = vec3(0.32, 0.10, 0.62);    // deep purple
-    vec3 darkCol   = vec3(0.05, 0.01, 0.12);    // near-black
+    vec3 litCol    = vec3(0.72, 0.42, 1.0);     // electric violet
+    vec3 shadowCol = vec3(0.35, 0.14, 0.65);    // deep purple
+    vec3 darkCol   = vec3(0.10, 0.04, 0.18);    // visible dark purple
 
     vec3 col;
     if (wrap > 0.55) {
