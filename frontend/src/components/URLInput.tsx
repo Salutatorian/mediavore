@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowRight,
@@ -8,6 +8,7 @@ import {
   Music,
   X,
   ImageOff,
+  Download,
 } from "lucide-react";
 import type { AppSettings } from "../App";
 import type { ClientProfile } from "../clientPlatform";
@@ -114,10 +115,33 @@ export default function URLInput({
   const [downloadBytesTotal, setDownloadBytesTotal] = useState<number | null>(
     null,
   );
+  /** File is in browser memory; user taps to save to disk/Files app. */
+  const [fileReady, setFileReady] = useState<{
+    blobUrl: string;
+    filename: string;
+    size: number;
+  } | null>(null);
+
+  const fileReadyRef = useRef(fileReady);
+  fileReadyRef.current = fileReady;
+
+  const revokeFileReady = useCallback(() => {
+    setFileReady((prev) => {
+      if (prev?.blobUrl) URL.revokeObjectURL(prev.blobUrl);
+      return null;
+    });
+  }, []);
 
   useEffect(() => {
     setThumbBroken(false);
   }, [mediaInfo?.thumbnail]);
+
+  useEffect(() => {
+    return () => {
+      const u = fileReadyRef.current?.blobUrl;
+      if (u) URL.revokeObjectURL(u);
+    };
+  }, []);
 
   useEffect(() => {
     setQuality(settings.videoQuality);
@@ -188,6 +212,7 @@ export default function URLInput({
 
   const handleDownload = async () => {
     if (!url) return;
+    revokeFileReady();
     setIsDownloading(true);
     setDownloadBytesReceived(0);
     setDownloadBytesTotal(null);
@@ -231,7 +256,6 @@ export default function URLInput({
         setDownloadBytesReceived(received);
         if (total != null) setDownloadBytesTotal(total);
       });
-      const blobUrl = URL.createObjectURL(blob);
 
       let filename = "mediavore-download";
       const cd = res.headers.get("Content-Disposition");
@@ -250,14 +274,11 @@ export default function URLInput({
         }
       }
 
-      const a = document.createElement("a");
-      a.href = blobUrl;
-      a.download = filename;
-      a.rel = "noopener";
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(blobUrl);
+      setFileReady({
+        blobUrl: URL.createObjectURL(blob),
+        filename,
+        size: blob.size,
+      });
     } catch (e) {
       setError(
         e instanceof Error ? e.message : "Network error while downloading",
@@ -269,7 +290,21 @@ export default function URLInput({
     }
   };
 
+  const saveToDevice = () => {
+    if (!fileReady) return;
+    const a = document.createElement("a");
+    a.href = fileReady.blobUrl;
+    a.download = fileReady.filename;
+    a.rel = "noopener";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(fileReady.blobUrl);
+    setFileReady(null);
+  };
+
   const clearInput = () => {
+    revokeFileReady();
     setUrl("");
     setMediaInfo(null);
     setError("");
@@ -366,6 +401,35 @@ export default function URLInput({
           <div className="px-5 pb-3">
             <p className="text-[12px] text-violet-400/50 font-mono">
               Pulling metadata…
+            </p>
+          </div>
+        )}
+
+        {/* ---- File ready (two-step: fetch here, then save to device) ---- */}
+        {fileReady && mediaInfo && !isDownloading && (
+          <div className="px-5 pb-4 border-t border-white/[0.06] pt-4 space-y-3">
+            <p className="text-[12px] text-emerald-400/80 font-mono">
+              Ready on this page · {formatBytes(fileReady.size)}
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={saveToDevice}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-violet-600 text-white text-sm font-medium hover:bg-violet-500 transition-colors"
+              >
+                <Download className="w-4 h-4" />
+                Save to device
+              </button>
+              <button
+                type="button"
+                onClick={revokeFileReady}
+                className="px-3 py-2 text-[12px] text-white/25 hover:text-white/45 font-mono"
+              >
+                Discard
+              </button>
+            </div>
+            <p className="text-[11px] text-white/20 font-mono leading-relaxed">
+              iPhone: file opens in Safari first, then use Share → Save to Files.
             </p>
           </div>
         )}
