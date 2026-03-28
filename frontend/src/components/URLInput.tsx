@@ -10,6 +10,7 @@ import {
   ImageOff,
 } from "lucide-react";
 import type { AppSettings } from "../App";
+import type { ClientProfile } from "../clientPlatform";
 
 interface MediaInfo {
   title: string;
@@ -21,6 +22,7 @@ interface MediaInfo {
 
 interface URLInputProps {
   settings: AppSettings;
+  clientProfile: ClientProfile;
   onProcessingChange?: (v: boolean) => void;
   onConsume?: () => void;
 }
@@ -91,6 +93,7 @@ const AUDIO_FORMATS = ["original", "mp3", "wav", "opus"];
 
 export default function URLInput({
   settings,
+  clientProfile,
   onProcessingChange,
   onConsume,
 }: URLInputProps) {
@@ -198,6 +201,7 @@ export default function URLInput({
       video_codec: codec,
       audio_format: audioFormat,
       audio_bitrate: String(bitrate),
+      client: clientProfile,
     });
 
     try {

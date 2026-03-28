@@ -4,6 +4,7 @@ import type { AppSettings } from "../App";
 
 interface MediaLabProps {
   settings: AppSettings;
+  clientProfileLabel: string;
   onSettingsChange: (s: AppSettings) => void;
   onClose: () => void;
 }
@@ -19,6 +20,7 @@ function formatAudioPill(item: string): string {
 
 export default function MediaLab({
   settings,
+  clientProfileLabel,
   onSettingsChange,
   onClose,
 }: MediaLabProps) {
@@ -134,9 +136,14 @@ export default function MediaLab({
           <div className="border-t border-white/[0.04] my-8" />
 
           {/* Info */}
+          <p className="text-violet-400/35 text-[11px] leading-relaxed font-mono mb-3">
+            Device profile: {clientProfileLabel} — defaults favor H.264 + MP4-friendly
+            outputs for built-in players. Change codecs above anytime.
+          </p>
           <p className="text-white/10 text-xs leading-relaxed tracking-wide">
             These defaults pre-populate when you paste a new URL. You can
-            override them per-download in the main view.
+            override them per-download in the main view. Settings are saved in
+            this browser.
           </p>
         </div>
       </motion.aside>

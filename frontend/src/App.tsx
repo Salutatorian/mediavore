@@ -1,6 +1,12 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Settings, Heart, MessageSquarePlus } from "lucide-react";
+import {
+  detectClientProfile,
+  getDefaultSettingsForProfile,
+  clientProfileLabel,
+  type ClientProfile,
+} from "./clientPlatform";
 import PlanetScene from "./components/PlanetScene";
 import type { PlanetSceneHandle } from "./components/PlanetScene";
 import URLInput from "./components/URLInput";
@@ -18,12 +24,26 @@ export interface AppSettings {
   audioBitrate: number;
 }
 
-const DEFAULT_SETTINGS: AppSettings = {
-  videoQuality: "1080p",
-  videoCodec: "h264",
-  audioFormat: "original",
-  audioBitrate: 192,
-};
+const SETTINGS_STORAGE_KEY = "mediavore-settings-v1";
+
+function loadStoredSettings(): AppSettings {
+  try {
+    const raw = localStorage.getItem(SETTINGS_STORAGE_KEY);
+    if (raw) {
+      const p = JSON.parse(raw) as Partial<AppSettings>;
+      return {
+        videoQuality: p.videoQuality ?? "1080p",
+        videoCodec: p.videoCodec ?? "h264",
+        audioFormat: p.audioFormat ?? "original",
+        audioBitrate:
+          typeof p.audioBitrate === "number" ? p.audioBitrate : 192,
+      };
+    }
+  } catch {
+    /* ignore */
+  }
+  return getDefaultSettingsForProfile(detectClientProfile());
+}
 
 export default function App() {
   const [showMediaLab, setShowMediaLab] = useState(false);
@@ -31,7 +51,21 @@ export default function App() {
   const [showDonate, setShowDonate] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
   const [legalPage, setLegalPage] = useState<LegalPageType | null>(null);
-  const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
+  const [settings, setSettings] = useState<AppSettings>(() =>
+    loadStoredSettings(),
+  );
+  const clientProfile = useMemo<ClientProfile>(
+    () => detectClientProfile(),
+    [],
+  );
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+    } catch {
+      /* ignore */
+    }
+  }, [settings]);
   const [processing, setProcessing] = useState(false);
   const planetRef = useRef<PlanetSceneHandle>(null);
 
@@ -89,6 +123,7 @@ export default function App() {
           {/* Oasis bar */}
           <URLInput
             settings={settings}
+            clientProfile={clientProfile}
             onProcessingChange={setProcessing}
             onConsume={handleConsume}
           />
@@ -170,6 +205,7 @@ export default function App() {
         {showMediaLab && (
           <MediaLab
             settings={settings}
+            clientProfileLabel={clientProfileLabel(clientProfile)}
             onSettingsChange={setSettings}
             onClose={() => setShowMediaLab(false)}
           />

@@ -660,6 +660,10 @@ async def download_media(
     video_codec: str = Query("h264"),
     audio_format: str = Query("original"),
     audio_bitrate: int = Query(192),
+    client: str = Query(
+        "unknown",
+        description="Client device profile from the Mediavore UI (ios, macos, windows, …).",
+    ),
 ):
     url = normalize_media_url(url)
     dl_type = (type or "video").strip().lower()
@@ -721,6 +725,13 @@ async def download_media(
             # progressive files — just grab the best available. Forcing a height
             # cap ruins vertical video quality (reels are 1080x1920 = height 1920).
             ydl_opts["format"] = "bestvideo+bestaudio/best"
+
+    if dl_type == "video":
+        ydl_opts.setdefault("postprocessors", [])
+        ydl_opts["postprocessors"].append({
+            "key": "FFmpegVideoRemuxer",
+            "preferedformat": "mp4",
+        })
 
     try:
         downloaded_file, dl_info = await asyncio.to_thread(
